@@ -1,0 +1,71 @@
+name: Deploy Law Change Search
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: ghcr.io/parkhyunchang/law-change-search
+  CONTAINER_NAME: law_change_search
+  HOST_PORT: 3600
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 이 앱은 의존성/빌드 산출물이 없는 순수 Node 앱이라
+      # Docker 이미지가 소스를 그대로 복사해 실행한다. (npm build 단계 불필요)
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to NAS via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.NAS_HOST }}
+          username: ${{ secrets.NAS_USER }}
+          password: ${{ secrets.NAS_SSH_PASSWORD }}
+          script: |
+            # ghcr.io 로그인
+            echo "${{ secrets.GHCR_PAT }}" | /usr/local/bin/docker login ghcr.io -u parkhyunchang --password-stdin
+
+            # 최신 이미지 Pull
+            /usr/local/bin/docker pull ${{ env.IMAGE_NAME }}:latest
+
+            # 기존 컨테이너 제거 (에러 무시)
+            /usr/local/bin/docker stop ${{ env.CONTAINER_NAME }} || true
+            /usr/local/bin/docker rm ${{ env.CONTAINER_NAME }} || true
+
+            # 새 컨테이너 실행 (호스트 3600 → 컨테이너 3000)
+            /usr/local/bin/docker run -d \
+              --name ${{ env.CONTAINER_NAME }} \
+              --restart unless-stopped \
+              -p ${{ env.HOST_PORT }}:3000 \
+              ${{ env.IMAGE_NAME }}:latest
+
+            # 미사용 이미지 정리
+            /usr/local/bin/docker image prune -f

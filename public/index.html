@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>세법 변경내용 검색 — 국가법령정보 OPEN API 테스트</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #1a2029; --panel2: #232b36;
+    --line: #2e3845; --text: #e6edf3; --muted: #8b97a6;
+    --accent: #4a9eff; --accent2: #2d7dd2;
+    --new: #2ea043; --old: #d1453b; --warn: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px;
+  }
+  header {
+    padding: 16px 22px; background: var(--panel); border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 22px 60px; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  input[type=text], select {
+    background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 7px; padding: 9px 11px; font-size: 14px; width: 100%;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .row > div { flex: 1; min-width: 150px; }
+
+  button {
+    background: var(--accent2); color: #fff; border: none; border-radius: 7px;
+    padding: 9px 16px; font-size: 14px; cursor: pointer; font-weight: 500;
+  }
+  button:hover { background: var(--accent); }
+  button.ghost { background: var(--panel2); border: 1px solid var(--line); color: var(--text); }
+  button.ghost:hover { border-color: var(--accent); }
+
+  .presets { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 4px; }
+  .chip {
+    background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 20px; padding: 5px 13px; font-size: 13px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab {
+    padding: 8px 15px; border-radius: 7px; cursor: pointer; font-size: 13px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--muted);
+  }
+  .tab.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
+  .hint { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .hint code { background: var(--panel2); padding: 1px 6px; border-radius: 4px; color: var(--accent); }
+  .hint a { color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+  tr:hover td { background: var(--panel2); }
+  td .lawlink { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge.개정 { background: rgba(210,153,34,.18); color: var(--warn); }
+  .badge.제정 { background: rgba(46,160,67,.18); color: var(--new); }
+  .badge.폐지 { background: rgba(209,69,59,.18); color: var(--old); }
+  .badge.타법 { background: rgba(74,158,255,.15); color: var(--accent); }
+
+  .status { font-size: 13px; color: var(--muted); margin: 4px 0 12px; min-height: 18px; }
+  .status.err { color: var(--old); }
+  .status.ok { color: var(--new); }
+
+  .scroll { max-height: 60vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+  pre.raw {
+    background: #0b0e13; border: 1px solid var(--line); border-radius: 8px; padding: 14px;
+    font-size: 12px; overflow: auto; max-height: 50vh; color: #c9d4e0; line-height: 1.5;
+  }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin: 6px 0 12px; flex-wrap: wrap; }
+  .spacer { flex: 1; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 6px 0; }
+  .muted-note { font-size: 12px; color: var(--warn); margin-top: 8px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📜 세법 변경내용 검색</h1>
+  <span class="sub">국가법령정보 OPEN API (law.go.kr/DRF) 테스트 콘솔</span>
+</header>
+
+<div class="wrap">
+
+  <!-- 인증키 -->
+  <div class="card">
+    <div class="row">
+      <div style="flex:2">
+        <label>인증키 (OC) — 본인 이메일 ID 앞부분</label>
+        <input type="text" id="oc" placeholder="예: gusckd1988 (gusckd1988@gmail.com 이면 'gusckd1988')" />
+      </div>
+      <div style="flex:0 0 auto">
+        <button class="ghost" id="saveOc">키 저장</button>
+      </div>
+    </div>
+    <div class="muted-note">
+      ⚠ OPEN API는 <b>발급받은 OC키</b>와 <b>호출 IP/도메인 등록</b>이 필요합니다.
+      <a href="https://open.law.go.kr/LSO/openApi/cuExpcInsertForm.do" target="_blank">신청 페이지</a>에서
+      활용 신청 후, 마이페이지 → <b>API인증키관리</b>에서 현재 IP(이 PC의 공인 IP)를 등록하세요.
+      미등록 시 <code>사용자 정보 검증에 실패하였습니다</code> 응답이 옵니다.
+    </div>
+  </div>
+
+  <!-- 검색 모드 -->
+  <div class="card">
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-target="law">현행법령 목록</div>
+      <div class="tab" data-target="lsHistory">법령 변경이력(연혁)</div>
+      <div class="tab" data-target="oldAndNew">신구법 비교</div>
+      <div class="tab" data-target="eflaw">시행일 기준 법령</div>
+    </div>
+
+    <div class="row">
+      <div style="flex:2">
+        <label>검색어 (법령명)</label>
+        <input type="text" id="query" placeholder="예: 소득세법" />
+      </div>
+      <div style="flex:0 0 120px">
+        <label>결과 수</label>
+        <select id="display">
+          <option>20</option><option>50</option><option selected>100</option>
+        </select>
+      </div>
+      <div style="flex:0 0 auto">
+        <button id="searchBtn">검색</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label>세법 빠른 선택</label>
+      <div class="presets" id="presets"></div>
+    </div>
+  </div>
+
+  <!-- 결과 -->
+  <div class="card">
+    <div class="toolbar">
+      <strong id="resultTitle">결과</strong>
+      <span class="spacer"></span>
+      <button class="ghost" id="toggleRaw">원본 JSON 보기</button>
+      <button class="ghost" id="openUpstream">실제 호출 URL 열기</button>
+    </div>
+    <div class="status" id="status">인증키와 검색어를 입력하고 [검색]을 누르세요.</div>
+    <div id="tableHost" class="scroll" style="display:none"></div>
+    <pre class="raw" id="rawHost" style="display:none"></pre>
+  </div>
+
+  <details class="card">
+    <summary>ℹ️ API 사용 메모 — target 값과 엔드포인트</summary>
+    <div class="hint" style="margin-top:10px">
+      <p>이 화면은 로컬 프록시 서버(<code>server.js</code>)를 거쳐 다음 엔드포인트를 호출합니다 (CORS 회피):</p>
+      <ul>
+        <li><code>https://www.law.go.kr/DRF/lawSearch.do</code> — 목록 조회</li>
+        <li><code>https://www.law.go.kr/DRF/lawService.do</code> — 본문 조회</li>
+      </ul>
+      <p>주요 <code>target</code> 값:</p>
+      <ul>
+        <li><code>law</code> — 현행법령 목록</li>
+        <li><code>eflaw</code> — 시행일 기준 법령</li>
+        <li><code>lsHistory</code> — 법령 연혁/변경이력</li>
+        <li><code>oldAndNew</code> — 신구법 비교</li>
+      </ul>
+      <p>공통 파라미터: <code>OC</code>(인증키), <code>type</code>(JSON/XML/HTML), <code>query</code>, <code>display</code>(≤100), <code>page</code>, <code>sort</code></p>
+    </div>
+  </details>
+
+</div>
+
+<script>
+const TAX_LAWS = [
+  "소득세법", "법인세법", "부가가치세법", "상속세 및 증여세법",
+  "국세기본법", "국세징수법", "조세특례제한법", "종합부동산세법",
+  "지방세법", "관세법", "개별소비세법", "상속세및증여세법"
+];
+
+let currentTarget = "law";
+let lastData = null;      // 파싱된 JSON
+let lastUpstream = "";    // 실제 호출 URL
+let rawVisible = false;
+
+const $ = (id) => document.getElementById(id);
+
+// ── 인증키 저장/복원 ──
+$("oc").value = localStorage.getItem("law_oc") || "";
+$("saveOc").onclick = () => {
+  localStorage.setItem("law_oc", $("oc").value.trim());
+  setStatus("ok", "인증키를 브라우저에 저장했습니다.");
+};
+
+// ── 프리셋 칩 ──
+const presetHost = $("presets");
+TAX_LAWS.forEach((name) => {
+  const c = document.createElement("span");
+  c.className = "chip"; c.textContent = name;
+  c.onclick = () => { $("query").value = name; doSearch(); };
+  presetHost.appendChild(c);
+});
+
+// ── 탭 ──
+document.querySelectorAll(".tab").forEach((t) => {
+  t.onclick = () => {
+    document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
+    t.classList.add("active");
+    currentTarget = t.dataset.target;
+  };
+});
+
+$("searchBtn").onclick = doSearch;
+$("query").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+
+$("toggleRaw").onclick = () => {
+  rawVisible = !rawVisible;
+  $("rawHost").style.display = rawVisible ? "block" : "none";
+  $("toggleRaw").textContent = rawVisible ? "원본 JSON 숨기기" : "원본 JSON 보기";
+};
+$("openUpstream").onclick = () => {
+  if (lastUpstream) window.open(lastUpstream, "_blank");
+};
+
+function setStatus(kind, msg) {
+  const el = $("status");
+  el.className = "status" + (kind ? " " + kind : "");
+  el.textContent = msg;
+}
+
+async function doSearch() {
+  const oc = $("oc").value.trim();
+  const query = $("query").value.trim();
+  if (!oc) return setStatus("err", "인증키(OC)를 입력하세요.");
+  if (!query) return setStatus("err", "검색어를 입력하세요.");
+
+  const params = new URLSearchParams({
+    mode: "search",
+    OC: oc,
+    target: currentTarget,
+    type: "JSON",
+    query,
+    display: $("display").value,
+    page: "1",
+  });
+
+  setStatus("", "조회 중…  (target=" + currentTarget + ")");
+  $("tableHost").style.display = "none";
+  $("rawHost").style.display = "none";
+
+  try {
+    const res = await fetch("/api/proxy?" + params.toString());
+    lastUpstream = res.headers.get("X-Upstream-Url") || "";
+    const text = await res.text();
+
+    let data;
+    try { data = JSON.parse(text); }
+    catch {
+      // JSON 이 아니면(인증오류 HTML/XML 등) 원본 그대로 보여줌
+      lastData = null;
+      $("rawHost").textContent = text.slice(0, 20000);
+      $("rawHost").style.display = "block";
+      rawVisible = true; $("toggleRaw").textContent = "원본 JSON 숨기기";
+      return setStatus("err", "JSON 응답이 아닙니다. 인증키/IP등록을 확인하세요. (원본 표시)");
+    }
+
+    lastData = data;
+    $("rawHost").textContent = JSON.stringify(data, null, 2);
+
+    // 인증 실패 메시지 감지
+    const flat = JSON.stringify(data);
+    if (flat.includes("검증에 실패") || flat.includes("등록") && flat.includes("IP")) {
+      setStatus("err", "인증 실패: OC키 또는 호출 IP/도메인 등록을 확인하세요.");
+    }
+
+    renderTable(data);
+  } catch (err) {
+    setStatus("err", "요청 실패: " + err.message);
+  }
+}
+
+// 응답 JSON 안에서 '레코드 배열'을 자동 탐색
+function findRecordArray(obj) {
+  let best = null;
+  (function walk(node) {
+    if (Array.isArray(node)) {
+      if (node.length && typeof node[0] === "object" && node[0] !== null) {
+        if (!best || node.length > best.length) best = node;
+      }
+      return;
+    }
+    if (node && typeof node === "object") {
+      for (const k in node) walk(node[k]);
+    }
+  })(obj);
+  return best;
+}
+
+function badgeFor(val) {
+  const s = String(val || "");
+  let cls = "";
+  if (s.includes("일부개정") || s.includes("전부개정") || s.includes("개정")) cls = "개정";
+  else if (s.includes("제정")) cls = "제정";
+  else if (s.includes("폐지")) cls = "폐지";
+  else if (s.includes("타법")) cls = "타법";
+  if (!cls) return escapeHtml(s);
+  return `<span class="badge ${cls}">${escapeHtml(s)}</span>`;
+}
+
+function renderTable(data) {
+  const rows = findRecordArray(data);
+  const host = $("tableHost");
+
+  // totalCnt 찾기
+  let total = "";
+  (function find(o){ if(o&&typeof o==="object"){ for(const k in o){ if(k==="totalCnt") total=o[k]; else find(o[k]); } } })(data);
+
+  if (!rows || !rows.length) {
+    host.style.display = "none";
+    if ($("status").className.indexOf("err") < 0)
+      setStatus("", "결과 레코드가 없습니다. (원본 JSON 보기로 응답 확인 가능)");
+    $("resultTitle").textContent = "결과 0건";
+    return;
+  }
+
+  // 컬럼 = 모든 레코드 키의 합집합 (링크/순번 류는 뒤로)
+  const keySet = [];
+  rows.forEach((r) => Object.keys(r).forEach((k) => { if (!keySet.includes(k)) keySet.push(k); }));
+  const cols = keySet.filter((k) => typeof rows[0][k] !== "object");
+
+  const changeKeys = ["제개정구분명", "제개정구분", "개정구분"];
+  const dateKeys = ["공포일자", "시행일자"];
+
+  let html = "<table><thead><tr>";
+  cols.forEach((c) => html += `<th>${escapeHtml(c)}</th>`);
+  html += "</tr></thead><tbody>";
+
+  rows.forEach((r) => {
+    html += "<tr>";
+    cols.forEach((c) => {
+      let v = r[c];
+      if (v == null) v = "";
+      let cell;
+      if (changeKeys.includes(c)) cell = badgeFor(v);
+      else if (dateKeys.includes(c)) cell = escapeHtml(fmtDate(v));
+      else cell = escapeHtml(String(v));
+      html += `<td>${cell}</td>`;
+    });
+    html += "</tr>";
+  });
+  html += "</tbody></table>";
+  host.innerHTML = html;
+  host.style.display = "block";
+
+  $("resultTitle").textContent = "결과 " + (total || rows.length) + "건";
+  if ($("status").className.indexOf("err") < 0)
+    setStatus("ok", "조회 완료 — " + rows.length + "건 표시 (전체 " + (total || rows.length) + "건)");
+}
+
+function fmtDate(v) {
+  const s = String(v || "");
+  if (/^\d{8}$/.test(s)) return s.slice(0,4)+"."+s.slice(4,6)+"."+s.slice(6,8);
+  return s;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (m) => (
+    { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[m]
+  ));
+}
+</script>
+</body>
+</html>

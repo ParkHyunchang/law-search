@@ -1,0 +1,11 @@
+services:
+  law-change-search:
+    image: ghcr.io/parkhyunchang/law-change-search:latest
+    # NAS에서 직접 빌드하려면 위 image 줄 대신 아래 build 사용
+    build: .
+    container_name: law_change_search
+    restart: unless-stopped
+    ports:
+      - "3600:3000"   # 호스트 3600 → 컨테이너 3000
+    environment:
+      - PORT=3000
