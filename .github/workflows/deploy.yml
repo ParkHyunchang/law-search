@@ -1,4 +1,4 @@
-name: Deploy Law Change Search
+name: Deploy Law Search
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - main
 
 env:
-  IMAGE_NAME: ghcr.io/parkhyunchang/law-change-search
-  CONTAINER_NAME: law_change_search
+  IMAGE_NAME: ghcr.io/parkhyunchang/law-search
+  CONTAINER_NAME: law_search
   HOST_PORT: 3600
 
 jobs:

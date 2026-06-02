@@ -36,7 +36,7 @@ function fetchUpstream(targetUrl) {
       {
         headers: {
           // law.go.kr 은 일부 요청에서 UA / Referer 를 본다
-          "User-Agent": "Mozilla/5.0 (law-change-search test client)",
+          "User-Agent": "Mozilla/5.0 (law-search test client)",
           Referer: "https://www.law.go.kr/",
           Accept: "application/json, text/xml, text/html, */*",
         },
@@ -102,7 +102,11 @@ function serveStatic(req, res, pathname) {
       return res.end("not found");
     }
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
+    res.writeHead(200, {
+      "Content-Type": MIME[ext] || "application/octet-stream",
+      // 정적 파일(특히 index.html)을 항상 최신으로 받도록 — 수정 후 새로고침 시 캐시로 인한 혼선 방지
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+    });
     res.end(data);
   });
 }

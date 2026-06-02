@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>세법 변경내용 검색 — 국가법령정보 OPEN API 테스트</title>
+<title>법령 변경내용 검색 — 국가법령정보 OPEN API 테스트</title>
 <style>
   :root {
     --bg: #0f1419; --panel: #1a2029; --panel2: #232b36;
@@ -42,12 +42,20 @@
   button.ghost { background: var(--panel2); border: 1px solid var(--line); color: var(--text); }
   button.ghost:hover { border-color: var(--accent); }
 
-  .presets { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 4px; }
+  .presets { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+  .preset-group { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+  .preset-cat {
+    flex: 0 0 72px; font-size: 11px; font-weight: 600; color: var(--muted);
+    text-align: right; padding-right: 4px;
+  }
   .chip {
     background: var(--panel2); border: 1px solid var(--line); color: var(--text);
     border-radius: 20px; padding: 5px 13px; font-size: 13px; cursor: pointer;
   }
   .chip:hover { border-color: var(--accent); color: var(--accent); }
+  @media (max-width: 640px) {
+    .preset-cat { flex-basis: 100%; text-align: left; }
+  }
 
   .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
   .tab {
@@ -65,6 +73,10 @@
   th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
   tr:hover td { background: var(--panel2); }
   td .lawlink { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  /* 결과 표: 한 글자씩 세로로 쌓이지 않게 — 단어 단위 줄바꿈 + 좁은 화면은 가로 스크롤 */
+  #tableHost table { min-width: 680px; }
+  #tableHost th, #tableHost td { word-break: keep-all; overflow-wrap: anywhere; white-space: normal; }
+  #tableHost td { max-width: 340px; }
 
   .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
   .badge.개정 { background: rgba(210,153,34,.18); color: var(--warn); }
@@ -85,12 +97,85 @@
   .spacer { flex: 1; }
   details summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 6px 0; }
   .muted-note { font-size: 12px; color: var(--warn); margin-top: 8px; line-height: 1.6; }
+
+  /* ── 상세 모달 ── */
+  tr.clickable { cursor: pointer; }
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.62); z-index: 50;
+    display: none; align-items: flex-start; justify-content: center; padding: 38px 16px;
+  }
+  .modal {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    max-width: 1020px; width: 100%; max-height: 86vh; display: flex; flex-direction: column;
+  }
+  .modal-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .modal-head h3 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; }
+  .modal-head .close { margin-left: auto; flex: 0 0 auto; }
+  .modal-body { padding: 16px 18px; overflow: auto; }
+
+  .meta-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .meta-chips .mc {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 3px 9px; font-size: 12px; color: var(--muted);
+  }
+  .amend-box {
+    background: rgba(74,158,255,.08); border: 1px solid var(--accent2);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 18px;
+  }
+  .amend-box h4 { margin: 0 0 8px; font-size: 13px; color: var(--accent); }
+  .amend-box .line { font-size: 13px; line-height: 1.75; white-space: pre-wrap; color: var(--text); }
+
+  .jo { margin-bottom: 14px; }
+  .jo-head {
+    margin: 18px 0 10px; font-size: 14px; color: var(--accent);
+    border-bottom: 1px solid var(--line); padding-bottom: 6px;
+  }
+  .jo-title { font-weight: 600; margin-bottom: 5px; line-height: 1.65; }
+  .hang { margin: 3px 0 3px 8px; line-height: 1.75; }
+  .ho   { margin: 2px 0 2px 24px; line-height: 1.75; }
+  .mok  { margin: 2px 0 2px 40px; line-height: 1.75; color: var(--muted); }
+  .jo-ref { margin-top: 5px; font-size: 12px; color: var(--muted); }
+
+  .cmp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .cmp-head .arrow { color: var(--accent); font-weight: 700; }
+  table.cmp { width: 100%; border-collapse: collapse; }
+  table.cmp th {
+    width: 50%; text-align: left; padding: 8px 10px; font-size: 12px;
+    color: var(--muted); border-bottom: 1px solid var(--line); position: static; background: var(--panel);
+  }
+  table.cmp td {
+    width: 50%; vertical-align: top; padding: 9px 10px; font-size: 13px;
+    line-height: 1.75; border-bottom: 1px solid var(--line);
+  }
+  table.cmp td.old { background: rgba(209,69,59,.05); }
+  table.cmp td.new { background: rgba(46,160,67,.05); }
+  span.diff { padding: 1px 4px; border-radius: 4px; font-weight: 600; }
+  span.diff.old { background: rgba(209,69,59,.22); color: #ff9b91; text-decoration: line-through; }
+  span.diff.new { background: rgba(46,160,67,.22); color: #5ee27e; }
+  .dstatus { color: var(--muted); padding: 24px; text-align: center; }
+  .dstatus.err { color: var(--old); }
+
+  /* 모달 내부 탭 (신구법 비교 / 법령 원문) */
+  .mtabs {
+    display: flex; gap: 6px; margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--panel); z-index: 2;
+  }
+  .mtab {
+    background: var(--panel2); border: 1px solid var(--line); color: var(--muted);
+    border-radius: 7px; padding: 7px 13px; font-size: 13px; cursor: pointer;
+  }
+  .mtab:hover { border-color: var(--accent); color: var(--accent); }
+  .mtab.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
 </style>
 </head>
 <body>
 <header>
-  <h1>📜 세법 변경내용 검색</h1>
-  <span class="sub">국가법령정보 OPEN API (law.go.kr/DRF) 테스트 콘솔</span>
+  <h1>📜 법령 변경내용 검색</h1>
+  <span class="sub">국가법령정보 OPEN API (law.go.kr/DRF) — 전체 법령 검색</span>
 </header>
 
 <div class="wrap">
@@ -118,15 +203,14 @@
   <div class="card">
     <div class="tabs" id="tabs">
       <div class="tab active" data-target="law">현행법령 목록</div>
-      <div class="tab" data-target="lsHistory">법령 변경이력(연혁)</div>
+      <div class="tab" data-target="eflaw">법령 변경이력(연혁)</div>
       <div class="tab" data-target="oldAndNew">신구법 비교</div>
-      <div class="tab" data-target="eflaw">시행일 기준 법령</div>
     </div>
 
     <div class="row">
       <div style="flex:2">
-        <label>검색어 (법령명)</label>
-        <input type="text" id="query" placeholder="예: 소득세법" />
+        <label>검색어 (법령명) — 모든 법령 검색 가능</label>
+        <input type="text" id="query" placeholder="예: 소득세법, 형법, 민법, 도로교통법, 근로기준법…" />
       </div>
       <div style="flex:0 0 120px">
         <label>결과 수</label>
@@ -140,7 +224,7 @@
     </div>
 
     <div style="margin-top:12px">
-      <label>세법 빠른 선택</label>
+      <label>빠른 선택 — 분야별 주요 법령 (다른 법령은 위 검색창에 직접 입력)</label>
       <div class="presets" id="presets"></div>
     </div>
   </div>
@@ -149,6 +233,7 @@
   <div class="card">
     <div class="toolbar">
       <strong id="resultTitle">결과</strong>
+      <span class="hint" id="rowHint" style="display:none">· 행을 클릭하면 본문/신구법 상세를 볼 수 있어요</span>
       <span class="spacer"></span>
       <button class="ghost" id="toggleRaw">원본 JSON 보기</button>
       <button class="ghost" id="openUpstream">실제 호출 URL 열기</button>
@@ -168,9 +253,8 @@
       </ul>
       <p>주요 <code>target</code> 값:</p>
       <ul>
-        <li><code>law</code> — 현행법령 목록</li>
-        <li><code>eflaw</code> — 시행일 기준 법령</li>
-        <li><code>lsHistory</code> — 법령 연혁/변경이력</li>
+        <li><code>law</code> — 현행법령 목록 (법령당 현행 1건)</li>
+        <li><code>eflaw</code> — 법령 변경이력(연혁): 시행일별 전체 버전(현행+연혁)</li>
         <li><code>oldAndNew</code> — 신구법 비교</li>
       </ul>
       <p>공통 파라미터: <code>OC</code>(인증키), <code>type</code>(JSON/XML/HTML), <code>query</code>, <code>display</code>(≤100), <code>page</code>, <code>sort</code></p>
@@ -179,17 +263,40 @@
 
 </div>
 
+<!-- 상세(본문/신구법) 모달 -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">상세</h3>
+      <button class="ghost close" id="modalClose">닫기 ✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
 <script>
-const TAX_LAWS = [
-  "소득세법", "법인세법", "부가가치세법", "상속세 및 증여세법",
-  "국세기본법", "국세징수법", "조세특례제한법", "종합부동산세법",
-  "지방세법", "관세법", "개별소비세법", "상속세및증여세법"
+// 빠른 선택 — 분야별 주요(기본) 법령. 자유롭게 추가/수정 가능.
+const PRESET_GROUPS = [
+  { cat: "기본법",      laws: ["대한민국헌법", "헌법"] },
+  { cat: "민사",        laws: ["민법", "상법", "민사소송법"] },
+  { cat: "형사",        laws: ["형법", "형사소송법"] },
+  { cat: "행정",        laws: ["행정기본법", "행정절차법", "행정소송법"] },
+  { cat: "노동",        laws: ["근로기준법", "최저임금법", "노동조합 및 노동관계조정법", "산업안전보건법"] },
+  { cat: "세법",        laws: ["소득세법", "법인세법", "부가가치세법", "상속세 및 증여세법", "국세기본법", "종합부동산세법", "지방세법", "관세법", "조세특례제한법"] },
+  { cat: "부동산·주택", laws: ["주택임대차보호법", "상가건물 임대차보호법", "부동산등기법", "국토의 계획 및 이용에 관한 법률"] },
+  { cat: "교통",        laws: ["도로교통법", "교통사고처리 특례법", "자동차관리법"] },
+  { cat: "사회·정보",   laws: ["국민건강보험법", "국민연금법", "개인정보 보호법"] },
+  { cat: "기업·공정",   laws: ["독점규제 및 공정거래에 관한 법률", "자본시장과 금융투자업에 관한 법률"] },
 ];
 
 let currentTarget = "law";
 let lastData = null;      // 파싱된 JSON
 let lastUpstream = "";    // 실제 호출 URL
 let rawVisible = false;
+let lastRows = [];        // 현재 표에 표시된 레코드 배열 (행 클릭용)
+let curOldNew = null;     // 현재 신구법 비교 응답 (모달 탭용)
+let curBodyMst = null;    // 해당 법령 원문 MST
+let curBodyHtml = null;   // 원문 HTML 캐시 (탭 재전환 시 재요청 방지)
 
 const $ = (id) => document.getElementById(id);
 
@@ -200,21 +307,33 @@ $("saveOc").onclick = () => {
   setStatus("ok", "인증키를 브라우저에 저장했습니다.");
 };
 
-// ── 프리셋 칩 ──
+// ── 프리셋 칩 (분야별) ──
 const presetHost = $("presets");
-TAX_LAWS.forEach((name) => {
-  const c = document.createElement("span");
-  c.className = "chip"; c.textContent = name;
-  c.onclick = () => { $("query").value = name; doSearch(); };
-  presetHost.appendChild(c);
+PRESET_GROUPS.forEach((g) => {
+  const grp = document.createElement("div");
+  grp.className = "preset-group";
+  const lab = document.createElement("span");
+  lab.className = "preset-cat";
+  lab.textContent = g.cat;
+  grp.appendChild(lab);
+  g.laws.forEach((name) => {
+    const c = document.createElement("span");
+    c.className = "chip"; c.textContent = name;
+    c.onclick = () => { $("query").value = name; doSearch(); };
+    grp.appendChild(c);
+  });
+  presetHost.appendChild(grp);
 });
 
 // ── 탭 ──
 document.querySelectorAll(".tab").forEach((t) => {
   t.onclick = () => {
+    if (t.classList.contains("active")) return;   // 같은 탭이면 무시
     document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
     t.classList.add("active");
     currentTarget = t.dataset.target;
+    // 검색어가 있으면 새 탭 기준으로 바로 재검색
+    if ($("query").value.trim()) doSearch();
   };
 });
 
@@ -229,6 +348,11 @@ $("toggleRaw").onclick = () => {
 $("openUpstream").onclick = () => {
   if (lastUpstream) window.open(lastUpstream, "_blank");
 };
+
+// ── 모달 열기/닫기 ──
+$("modalClose").onclick = closeModal;
+$("modal").addEventListener("click", (e) => { if (e.target === $("modal")) closeModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
 function setStatus(kind, msg) {
   const el = $("status");
@@ -266,10 +390,13 @@ async function doSearch() {
     catch {
       // JSON 이 아니면(인증오류 HTML/XML 등) 원본 그대로 보여줌
       lastData = null;
+      $("tableHost").style.display = "none";
+      $("resultTitle").textContent = "결과";
+      $("rowHint").style.display = "none";
       $("rawHost").textContent = text.slice(0, 20000);
       $("rawHost").style.display = "block";
       rawVisible = true; $("toggleRaw").textContent = "원본 JSON 숨기기";
-      return setStatus("err", "JSON 응답이 아닙니다. 인증키/IP등록을 확인하세요. (원본 표시)");
+      return setStatus("err", "JSON 응답이 아닙니다. 인증키/IP등록 또는 target 파라미터를 확인하세요. (원본 표시)");
     }
 
     lastData = data;
@@ -289,7 +416,8 @@ async function doSearch() {
 
 // 응답 JSON 안에서 '레코드 배열'을 자동 탐색
 function findRecordArray(obj) {
-  let best = null;
+  let best = null;        // 가장 큰 레코드 배열
+  let single = null;      // 결과가 1건일 때 배열이 아닌 단일 객체로 오는 경우 대비
   (function walk(node) {
     if (Array.isArray(node)) {
       if (node.length && typeof node[0] === "object" && node[0] !== null) {
@@ -298,10 +426,17 @@ function findRecordArray(obj) {
       return;
     }
     if (node && typeof node === "object") {
+      // 모든 값이 원시값이고 키가 충분한 객체 = 단일 레코드 후보
+      const vals = Object.values(node);
+      if (!single && vals.length >= 3 && vals.every((v) => v === null || typeof v !== "object")) {
+        single = node;
+      }
       for (const k in node) walk(node[k]);
     }
   })(obj);
-  return best;
+  if (best) return best;
+  if (single) return [single];   // 1건짜리 응답도 배열로 취급
+  return null;
 }
 
 function badgeFor(val) {
@@ -316,7 +451,7 @@ function badgeFor(val) {
 }
 
 function renderTable(data) {
-  const rows = findRecordArray(data);
+  let rows = findRecordArray(data);
   const host = $("tableHost");
 
   // totalCnt 찾기
@@ -325,16 +460,45 @@ function renderTable(data) {
 
   if (!rows || !rows.length) {
     host.style.display = "none";
+    lastRows = [];
+    $("rowHint").style.display = "none";
     if ($("status").className.indexOf("err") < 0)
       setStatus("", "결과 레코드가 없습니다. (원본 JSON 보기로 응답 확인 가능)");
     $("resultTitle").textContent = "결과 0건";
     return;
   }
 
-  // 컬럼 = 모든 레코드 키의 합집합 (링크/순번 류는 뒤로)
+  // 검색어 관련도순 정렬: 정확히 일치 > 접두 일치 > 부분 포함
+  // (부분 문자열만 겹치는 무관한 법령 — 예: '상법' 검색 시 '공무원 재해보상법' — 은 아래로 내림)
+  const q = $("query").value.trim();
+  const nameKey = ("법령명한글" in rows[0]) ? "법령명한글" : (("신구법명" in rows[0]) ? "신구법명" : null);
+  if (q && nameKey) {
+    // 정확히 일치 > 접두 일치 > 검색어로 끝남(예: '헌법'→대한민국헌법) > 단순 포함
+    const rank = (n) => {
+      n = String(n || "");
+      if (n === q) return 0;
+      if (n.startsWith(q)) return 1;
+      if (n.endsWith(q)) return 2;
+      return n.includes(q) ? 3 : 4;
+    };
+    rows = rows.slice().sort((a, b) => rank(a[nameKey]) - rank(b[nameKey]));
+  }
+
+  // 컬럼 = 의미있는 것만 추려서 보기 좋게 정렬
+  // (URL/코드/내부ID 류는 숨김 — 상세 클릭은 숨겨진 상세링크를 그대로 사용하므로 영향 없음)
+  const HIDE = [
+    "법령상세링크", "신구법상세링크", "상세링크", "소관부처코드", "id",
+    "공동부령정보", "자법타법여부", "법령ID", "신구법ID", "법령약칭명",
+    "법령일련번호", "신구법일련번호"
+  ];
+  const ORDER = [
+    "현행연혁코드", "법령명한글", "신구법명", "법령구분명", "소관부처명",
+    "제개정구분명", "공포번호", "공포일자", "시행일자", "시행일"
+  ];
   const keySet = [];
   rows.forEach((r) => Object.keys(r).forEach((k) => { if (!keySet.includes(k)) keySet.push(k); }));
-  const cols = keySet.filter((k) => typeof rows[0][k] !== "object");
+  const avail = keySet.filter((k) => typeof rows[0][k] !== "object" && !HIDE.includes(k));
+  const cols = ORDER.filter((k) => avail.includes(k)).concat(avail.filter((k) => !ORDER.includes(k)));
 
   const changeKeys = ["제개정구분명", "제개정구분", "개정구분"];
   const dateKeys = ["공포일자", "시행일자"];
@@ -343,8 +507,8 @@ function renderTable(data) {
   cols.forEach((c) => html += `<th>${escapeHtml(c)}</th>`);
   html += "</tr></thead><tbody>";
 
-  rows.forEach((r) => {
-    html += "<tr>";
+  rows.forEach((r, ri) => {
+    html += '<tr class="clickable" data-ri="' + ri + '">';
     cols.forEach((c) => {
       let v = r[c];
       if (v == null) v = "";
@@ -360,9 +524,16 @@ function renderTable(data) {
   host.innerHTML = html;
   host.style.display = "block";
 
+  // 행 클릭 → 상세(본문/신구법) 보기
+  lastRows = rows;
+  host.querySelectorAll("tr.clickable").forEach((tr) => {
+    tr.addEventListener("click", () => openDetail(lastRows[+tr.dataset.ri]));
+  });
+  $("rowHint").style.display = "";
+
   $("resultTitle").textContent = "결과 " + (total || rows.length) + "건";
   if ($("status").className.indexOf("err") < 0)
-    setStatus("ok", "조회 완료 — " + rows.length + "건 표시 (전체 " + (total || rows.length) + "건)");
+    setStatus("ok", "조회 완료 — " + rows.length + "건 표시 · 행을 클릭하면 상세를 볼 수 있습니다.");
 }
 
 function fmtDate(v) {
@@ -374,6 +545,268 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (m) => (
     { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[m]
   ));
+}
+
+// ───────────── 상세(본문 / 신구법 비교) 보기 ─────────────
+function openModal()  { $("modal").style.display = "flex"; }
+function closeModal() { $("modal").style.display = "none"; $("modalBody").innerHTML = ""; }
+
+// law.go.kr 은 항목이 1개면 배열이 아니라 객체로 준다 → 항상 배열로 정규화
+function asArr(v) {
+  return Array.isArray(v) ? v : (v == null ? [] : [v]);
+}
+
+// [[...]] / 문자열 / 배열 을 모두 '줄 배열'로 정규화
+function asLines(v) {
+  if (v == null) return [];
+  if (Array.isArray(v)) {
+    const out = [];
+    v.forEach((x) => { if (Array.isArray(x)) out.push(...x); else if (x != null) out.push(x); });
+    return out;
+  }
+  return [String(v)];
+}
+
+// 레코드 안에서 lawService.do 상세링크를 찾는다
+function findDetailLink(row) {
+  for (const k in row) {
+    const v = row[k];
+    if (typeof v === "string" && v.indexOf("/DRF/lawService.do") >= 0) return v;
+  }
+  return null;
+}
+
+async function openDetail(row) {
+  if (!row) return;
+  const oc = $("oc").value.trim();
+  if (!oc) return setStatus("err", "인증키(OC)를 먼저 입력하세요.");
+
+  const link = findDetailLink(row);
+  if (!link) {
+    $("modalTitle").textContent = "상세";
+    $("modalBody").innerHTML = '<div class="dstatus err">이 항목에는 상세 링크(lawService.do)가 없어 본문을 불러올 수 없습니다.</div>';
+    return openModal();
+  }
+
+  // 상세링크에서 target / MST / efYd 추출 (law.go.kr이 알려준 값 그대로 사용)
+  let target = "law", mst = "", efYd = "";
+  try {
+    const u = new URL("https://www.law.go.kr" + link);
+    target = u.searchParams.get("target") || "law";
+    mst = u.searchParams.get("MST") || "";
+    efYd = u.searchParams.get("efYd") || "";
+  } catch (e) { /* 기본값 사용 */ }
+
+  const params = new URLSearchParams({ mode: "service", OC: oc, target, type: "JSON" });
+  if (mst)  params.set("MST", mst);
+  if (efYd) params.set("efYd", efYd);
+
+  $("modalTitle").textContent = "불러오는 중…";
+  $("modalBody").innerHTML = '<div class="dstatus">조회 중…</div>';
+  openModal();
+
+  try {
+    const res = await fetch("/api/proxy?" + params.toString());
+    const textRaw = await res.text();
+    let data;
+    try { data = JSON.parse(textRaw); }
+    catch {
+      $("modalTitle").textContent = "원본 응답 (JSON 아님)";
+      $("modalBody").innerHTML = '<pre class="raw">' + escapeHtml(textRaw.slice(0, 20000)) + "</pre>";
+      return;
+    }
+    if (data.OldAndNewService) renderOldNew(data.OldAndNewService);
+    else if (data["법령"]) renderBody(data["법령"]);
+    else {
+      $("modalTitle").textContent = "상세 (원본 JSON)";
+      $("modalBody").innerHTML = '<pre class="raw">' + escapeHtml(JSON.stringify(data, null, 2)) + "</pre>";
+    }
+  } catch (err) {
+    $("modalBody").innerHTML = '<div class="dstatus err">요청 실패: ' + escapeHtml(err.message) + "</div>";
+  }
+}
+
+// 법령 본문 렌더링 (기본정보 + 개정문 + 조문 + 부칙)
+function renderBody(법령) {
+  const info = 법령["기본정보"] || {};
+  $("modalTitle").textContent = info["법령명_한글"] || "법령 본문";
+  $("modalBody").innerHTML = bodyHtml(법령);
+}
+
+// 법령 본문 → HTML 문자열
+function bodyHtml(법령) {
+  const info = 법령["기본정보"] || {};
+  let html = "";
+
+  // 메타 칩
+  const chips = [];
+  if (info["제개정구분"]) chips.push(info["제개정구분"]);
+  if (info["공포일자"])   chips.push("공포 " + fmtDate(info["공포일자"]));
+  if (info["시행일자"])   chips.push("시행 " + fmtDate(info["시행일자"]));
+  if (info["공포번호"])   chips.push("공포번호 " + info["공포번호"]);
+  if (info["소관부처"] && info["소관부처"].content) chips.push(info["소관부처"].content);
+  if (chips.length)
+    html += '<div class="meta-chips">' + chips.map((c) => '<span class="mc">' + escapeHtml(c) + "</span>").join("") + "</div>";
+
+  // 개정문 — 이번 개정에서 무엇이 바뀌었는지의 핵심
+  const amend = asLines(법령["개정문"] && 법령["개정문"]["개정문내용"]);
+  if (amend.length) {
+    html += '<div class="amend-box"><h4>📌 개정문 (이번 개정 내용)</h4>';
+    html += '<div class="line">' + amend.map((l) => escapeHtml(l)).join("\n") + "</div></div>";
+  }
+
+  // 조문
+  const jomun = asArr(법령["조문"] && 법령["조문"]["조문단위"]);
+  if (jomun.length) {
+    html += '<h4 class="jo-head" style="margin-top:4px">조문</h4>';
+    jomun.forEach((jo) => {
+      if (jo["조문여부"] === "전문") {       // 장/절 제목
+        html += '<h4 class="jo-head">' + escapeHtml(String(jo["조문내용"] || "").trim()) + "</h4>";
+        return;
+      }
+      html += '<div class="jo">';
+      html += '<div class="jo-title">' + escapeHtml(String(jo["조문내용"] || "").trim()) + "</div>";
+      asArr(jo["항"]).forEach((hang) => {
+        if (hang["항내용"]) html += '<div class="hang">' + escapeHtml(hang["항내용"]) + "</div>";
+        asArr(hang["호"]).forEach((ho) => {
+          html += '<div class="ho">' + escapeHtml(asLines(ho["호내용"]).join(" ")) + "</div>";
+          asArr(ho["목"]).forEach((mok) => {
+            if (mok["목내용"]) html += '<div class="mok">' + escapeHtml(mok["목내용"]) + "</div>";
+          });
+        });
+      });
+      const ref = asLines(jo["조문참고자료"]);
+      if (ref.length) html += '<div class="jo-ref">' + escapeHtml(ref.join(" ")) + "</div>";
+      html += "</div>";
+    });
+  }
+
+  // 부칙 (접이식 — 양이 많음)
+  const bu = asArr(법령["부칙"] && 법령["부칙"]["부칙단위"]);
+  if (bu.length) {
+    html += '<details style="margin-top:10px"><summary>부칙 ' + bu.length + "건 펼쳐보기</summary>";
+    bu.forEach((b) => {
+      html += '<div class="jo"><div class="jo-title">부칙 &lt;제' + escapeHtml(String(b["부칙공포번호"] || "")) +
+              "호, " + fmtDate(b["부칙공포일자"]) + "&gt;</div>";
+      asLines(b["부칙내용"]).forEach((l) => { html += '<div class="hang">' + escapeHtml(l) + "</div>"; });
+      html += "</div>";
+    });
+    html += "</details>";
+  }
+
+  return html || '<div class="dstatus">표시할 본문 내용이 없습니다.</div>';
+}
+
+// <P>…</P> 로 표시된 변경 부분을 강조 (cls = old | new)
+function renderDiff(raw, cls) {
+  const s = String(raw == null ? "" : raw);
+  const re = /<P>([\s\S]*?)<\/P>/g;
+  let out = "", last = 0, m;
+  while ((m = re.exec(s))) {
+    out += escapeHtml(s.slice(last, m.index));
+    out += '<span class="diff ' + cls + '">' + escapeHtml(m[1]) + "</span>";
+    last = re.lastIndex;
+  }
+  out += escapeHtml(s.slice(last));
+  return out;
+}
+
+// 신구법 비교 — "신구법 비교 / 법령 원문" 두 탭으로 보여준다
+function renderOldNew(svc) {
+  const newInfo = svc["신조문_기본정보"] || {};
+  const oldInfo = svc["구조문_기본정보"] || {};
+  $("modalTitle").textContent = (newInfo["법령명"] || oldInfo["법령명"] || "신구법 비교") + " — 신구법 비교";
+  curOldNew = svc;
+  curBodyMst = newInfo["법령일련번호"] || oldInfo["법령일련번호"] || "";
+  curBodyHtml = null;
+  showDetailTab("compare");
+}
+
+// 모달 내부 탭 전환 (compare = 신구법 비교, body = 법령 원문)
+function showDetailTab(which) {
+  const bar =
+    '<div class="mtabs">' +
+      '<button class="mtab ' + (which === "compare" ? "active" : "") + '" data-mt="compare">🔀 신구법 비교</button>' +
+      '<button class="mtab ' + (which === "body" ? "active" : "") + '" data-mt="body">📄 법령 원문</button>' +
+    "</div>";
+
+  if (which === "compare") {
+    $("modalBody").innerHTML = bar + oldNewHtml(curOldNew);
+    bindDetailTabs();
+    return;
+  }
+
+  // 법령 원문 탭
+  if (curBodyHtml != null) {
+    $("modalBody").innerHTML = bar + curBodyHtml;
+    bindDetailTabs();
+    return;
+  }
+  $("modalBody").innerHTML = bar + '<div class="dstatus">원문 불러오는 중…</div>';
+  bindDetailTabs();
+  loadBodyHtml(curBodyMst)
+    .then((h) => { curBodyHtml = h; $("modalBody").innerHTML = bar + h; bindDetailTabs(); })
+    .catch((err) => {
+      $("modalBody").innerHTML = bar + '<div class="dstatus err">원문 로드 실패: ' + escapeHtml(err.message) + "</div>";
+      bindDetailTabs();
+    });
+}
+
+function bindDetailTabs() {
+  document.querySelectorAll(".mtab").forEach((b) => { b.onclick = () => showDetailTab(b.dataset.mt); });
+}
+
+// 법령 원문(target=law)을 불러와 HTML 문자열로 반환
+async function loadBodyHtml(mst) {
+  const oc = $("oc").value.trim();
+  const params = new URLSearchParams({ mode: "service", OC: oc, target: "law", type: "JSON" });
+  if (mst) params.set("MST", mst);
+  const res = await fetch("/api/proxy?" + params.toString());
+  const t = await res.text();
+  let data;
+  try { data = JSON.parse(t); }
+  catch { return '<pre class="raw">' + escapeHtml(t.slice(0, 20000)) + "</pre>"; }
+  if (data["법령"]) return bodyHtml(data["법령"]);
+  return '<pre class="raw">' + escapeHtml(JSON.stringify(data, null, 2)) + "</pre>";
+}
+
+// 신구법 비교 → HTML 문자열 (구법 vs 신법 2열 대조)
+function oldNewHtml(svc) {
+  const oldInfo = svc["구조문_기본정보"] || {};
+  const newInfo = svc["신조문_기본정보"] || {};
+  const oldArr = asArr(svc["구조문목록"] && svc["구조문목록"]["조문"]);
+  const newArr = asArr(svc["신조문목록"] && svc["신조문목록"]["조문"]);
+
+  const byNo = {}, order = [];
+  function put(arr, key) {
+    arr.forEach((c) => {
+      const no = String(c["no"] != null ? c["no"] : "");
+      if (!(no in byNo)) { byNo[no] = {}; order.push(no); }
+      byNo[no][key] = c["content"] || "";
+    });
+  }
+  put(oldArr, "old");
+  put(newArr, "new");
+
+  function infoLine(label, i) {
+    const bits = [];
+    if (i["제개정구분명"]) bits.push(i["제개정구분명"]);
+    if (i["시행일자"])     bits.push("시행 " + fmtDate(i["시행일자"]));
+    if (i["공포일자"])     bits.push("공포 " + fmtDate(i["공포일자"]));
+    if (i["공포번호"])     bits.push("제" + i["공포번호"] + "호");
+    return label + (bits.length ? " (" + bits.join(" · ") + ")" : "");
+  }
+
+  let html = '<div class="cmp-head"><span class="mc">' + escapeHtml(infoLine("구법", oldInfo)) +
+             '</span><span class="arrow">→</span><span class="mc">' + escapeHtml(infoLine("신법", newInfo)) + "</span></div>";
+  html += '<div style="overflow:auto"><table class="cmp"><thead><tr><th>구법 (개정 전)</th><th>신법 (개정 후)</th></tr></thead><tbody>';
+  order.forEach((no) => {
+    const p = byNo[no] || {};
+    html += '<tr><td class="old">' + renderDiff(p.old, "old") + '</td><td class="new">' + renderDiff(p.new, "new") + "</td></tr>";
+  });
+  html += "</tbody></table></div>";
+  html += '<p class="jo-ref" style="margin-top:12px">🔴 취소선 = 이전 문구, 🟢 강조 = 변경·추가된 문구. 변경 없는 조항은 “(현행과 같음)”으로 표시됩니다. 전체 조문은 위 <b>📄 법령 원문</b> 탭에서 확인하세요.</p>';
+  return html;
 }
 </script>
 </body>
