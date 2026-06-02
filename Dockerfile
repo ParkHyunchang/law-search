@@ -10,8 +10,8 @@ COPY public ./public
 ENV PORT=3000
 EXPOSE 3000
 
-# 헬스체크: 인덱스가 응답하는지
+# 헬스체크: 인덱스가 응답하는지 (host 네트워크에서 PORT 가 바뀌어도 따라가도록 ${PORT} 사용)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1
+  CMD wget -qO- http://localhost:${PORT}/ >/dev/null 2>&1 || exit 1
 
 CMD ["node", "server.js"]

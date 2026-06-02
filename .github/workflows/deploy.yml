@@ -10,7 +10,6 @@ env:
   CRAWLER_IMAGE: ghcr.io/parkhyunchang/law-search-crawler
   CONTAINER_NAME: law_search
   CRAWLER_NAME: law_crawler
-  NETWORK_NAME: law_net
   HOST_PORT: 3600
 
 jobs:
@@ -71,27 +70,32 @@ jobs:
             $DOCKER pull ${{ env.IMAGE_NAME }}:latest
             $DOCKER pull ${{ env.CRAWLER_IMAGE }}:latest
 
-            # 두 컨테이너가 서로 통신할 사용자 네트워크 (없으면 생성)
-            $DOCKER network create ${{ env.NETWORK_NAME }} || true
+            # [네트워크] Synology 사용자 정의 브리지에서는 컨테이너 간(node↔crawler)
+            # 통신이 호스트 방화벽/FORWARD 규칙 때문에 드롭된다(연결 timeout).
+            # → 두 컨테이너를 모두 host 네트워크로 띄우고 localhost 로 통신한다.
+            #   - 크롤러: HOST=127.0.0.1 로 바인딩 → LAN 비노출(내부 전용 유지)
+            #   - 앱: 호스트 ${HOST_PORT} 를 직접 listen, 크롤러는 127.0.0.1:8000 호출
 
-            # ── 크롤러 컨테이너 (외부 포트 미개방, 내부망 전용) ──
+            # ── 크롤러 컨테이너 (호스트 루프백 전용, 외부 미노출) ──
             $DOCKER stop ${{ env.CRAWLER_NAME }} || true
             $DOCKER rm ${{ env.CRAWLER_NAME }} || true
             $DOCKER run -d \
               --name ${{ env.CRAWLER_NAME }} \
               --restart unless-stopped \
-              --network ${{ env.NETWORK_NAME }} \
+              --network host \
+              -e HOST=127.0.0.1 \
+              -e PORT=8000 \
               ${{ env.CRAWLER_IMAGE }}:latest
 
-            # ── 앱 컨테이너 (호스트 3600 → 컨테이너 3000) ──
+            # ── 앱 컨테이너 (호스트 ${HOST_PORT} 직접 listen) ──
             $DOCKER stop ${{ env.CONTAINER_NAME }} || true
             $DOCKER rm ${{ env.CONTAINER_NAME }} || true
             $DOCKER run -d \
               --name ${{ env.CONTAINER_NAME }} \
               --restart unless-stopped \
-              --network ${{ env.NETWORK_NAME }} \
-              -p ${{ env.HOST_PORT }}:3000 \
-              -e CRAWLER_URL=http://${{ env.CRAWLER_NAME }}:8000 \
+              --network host \
+              -e PORT=${{ env.HOST_PORT }} \
+              -e CRAWLER_URL=http://127.0.0.1:8000 \
               ${{ env.IMAGE_NAME }}:latest
 
             # 미사용 이미지 정리
