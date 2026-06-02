@@ -15,6 +15,10 @@ const { URL } = require("url");
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 
+// 크롤러(Python/FastAPI) 서비스 주소.
+// 로컬 개발: localhost:8000 / 프로덕션(compose·NAS): http://law_crawler:8000 을 env 로 주입
+const CRAWLER_URL = process.env.CRAWLER_URL || "http://localhost:8000";
+
 // law.go.kr DRF 엔드포인트
 const ENDPOINTS = {
   search: "https://www.law.go.kr/DRF/lawSearch.do", // 목록 조회
@@ -89,6 +93,33 @@ async function handleProxy(req, res, reqUrl) {
   }
 }
 
+// 크롤러(Python/FastAPI) 의 한 경로로 쿼리스트링을 그대로 넘기는 공통 핸들러.
+// (브라우저 → Node → 내부망의 Python 크롤러. 크롤러는 외부에 포트를 열지 않음)
+//   /api/crawl  → 크롤러 /crawl  (게시판: 공지/보도/뉴스)
+//   /api/qna    → 크롤러 /qna    (질의회신: K-IFRS/일반기준/요약 + 검색)
+function proxyCrawler(crawlerPath, req, res, reqUrl) {
+  const upstream = new URL(crawlerPath, CRAWLER_URL);
+  for (const [k, v] of reqUrl.searchParams) upstream.searchParams.set(k, v);
+
+  const lib = upstream.protocol === "https:" ? https : http;
+  const creq = lib.get(upstream.toString(), (cres) => {
+    const chunks = [];
+    cres.on("data", (c) => chunks.push(c));
+    cres.on("end", () => {
+      res.writeHead(cres.statusCode || 502, {
+        "Content-Type": cres.headers["content-type"] || "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(Buffer.concat(chunks));
+    });
+  });
+  creq.on("error", (err) => {
+    res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ error: "crawler_unreachable", message: String(err && err.message ? err.message : err), url: upstream.toString() }));
+  });
+  creq.setTimeout(20000, () => creq.destroy(new Error("crawler timeout")));
+}
+
 // 정적 파일 서빙
 function serveStatic(req, res, pathname) {
   let filePath = path.join(PUBLIC_DIR, pathname === "/" ? "index.html" : pathname);
@@ -116,10 +147,17 @@ const server = http.createServer((req, res) => {
   if (reqUrl.pathname === "/api/proxy") {
     return handleProxy(req, res, reqUrl);
   }
+  if (reqUrl.pathname === "/api/crawl") {
+    return proxyCrawler("/crawl", req, res, reqUrl);
+  }
+  if (reqUrl.pathname === "/api/qna") {
+    return proxyCrawler("/qna", req, res, reqUrl);
+  }
   return serveStatic(req, res, reqUrl.pathname);
 });
 
 server.listen(PORT, () => {
   console.log(`\n  법령 변경 검색 테스트 서버 실행 중`);
-  console.log(`  →  http://localhost:${PORT}\n`);
+  console.log(`  →  http://localhost:${PORT}`);
+  console.log(`  크롤러(CRAWLER_URL): ${CRAWLER_URL}\n`);
 });

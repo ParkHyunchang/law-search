@@ -9,3 +9,17 @@ services:
       - "3600:3000"   # 호스트 3600 → 컨테이너 3000
     environment:
       - PORT=3000
+      # 같은 compose 네트워크의 크롤러 서비스로 /api/crawl 을 프록시
+      - CRAWLER_URL=http://crawler:8000
+    depends_on:
+      - crawler
+
+  # 한국회계기준원(kasb.or.kr) 크롤러 — Python/FastAPI.
+  # 외부로 포트를 열지 않고 내부 네트워크에서 law-search 만 접근(보안).
+  crawler:
+    image: ghcr.io/parkhyunchang/law-search-crawler:latest
+    build: ./crawler
+    container_name: law_crawler
+    restart: unless-stopped
+    environment:
+      - PORT=8000

@@ -57,6 +57,15 @@
     .preset-cat { flex-basis: 100%; text-align: left; }
   }
 
+  /* 상단 메뉴 (화면 전환) */
+  .topnav { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .navbtn {
+    padding: 10px 18px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600;
+    background: var(--panel); border: 1px solid var(--line); color: var(--muted);
+  }
+  .navbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .navbtn.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
   .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
   .tab {
     padding: 8px 15px; border-radius: 7px; cursor: pointer; font-size: 13px;
@@ -74,9 +83,10 @@
   tr:hover td { background: var(--panel2); }
   td .lawlink { color: var(--accent); cursor: pointer; text-decoration: underline; }
   /* 결과 표: 한 글자씩 세로로 쌓이지 않게 — 단어 단위 줄바꿈 + 좁은 화면은 가로 스크롤 */
-  #tableHost table { min-width: 680px; }
-  #tableHost th, #tableHost td { word-break: keep-all; overflow-wrap: anywhere; white-space: normal; }
-  #tableHost td { max-width: 340px; }
+  #tableHost table, #kasbTableHost table { min-width: 680px; }
+  #tableHost th, #tableHost td,
+  #kasbTableHost th, #kasbTableHost td { word-break: keep-all; overflow-wrap: anywhere; white-space: normal; }
+  #tableHost td, #kasbTableHost td { max-width: 340px; }
 
   .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
   .badge.개정 { background: rgba(210,153,34,.18); color: var(--warn); }
@@ -180,6 +190,16 @@
 
 <div class="wrap">
 
+  <!-- 상단 메뉴 — 화면(앱) 전환 -->
+  <nav class="topnav" id="topnav">
+    <button class="navbtn active" data-app="law">📜 법령 변경검색</button>
+    <button class="navbtn" data-app="qna">📑 질의회신 검색</button>
+    <button class="navbtn" data-app="kasb">🏛 한국회계기준원</button>
+  </nav>
+
+  <!-- ===================== 법령 검색 화면 ===================== -->
+  <section id="lawApp">
+
   <!-- 인증키 -->
   <div class="card">
     <div class="row">
@@ -208,25 +228,25 @@
     </div>
 
     <div class="row">
-      <div style="flex:2">
-        <label>검색어 (법령명) — 모든 법령 검색 가능</label>
-        <input type="text" id="query" placeholder="예: 소득세법, 형법, 민법, 도로교통법, 근로기준법…" />
+        <div style="flex:2">
+          <label>검색어 (법령명) — 모든 법령 검색 가능</label>
+          <input type="text" id="query" placeholder="예: 소득세법, 형법, 민법, 도로교통법, 근로기준법…" />
+        </div>
+        <div style="flex:0 0 120px">
+          <label>결과 수</label>
+          <select id="display">
+            <option>20</option><option>50</option><option selected>100</option>
+          </select>
+        </div>
+        <div style="flex:0 0 auto">
+          <button id="searchBtn">검색</button>
+        </div>
       </div>
-      <div style="flex:0 0 120px">
-        <label>결과 수</label>
-        <select id="display">
-          <option>20</option><option>50</option><option selected>100</option>
-        </select>
-      </div>
-      <div style="flex:0 0 auto">
-        <button id="searchBtn">검색</button>
-      </div>
-    </div>
 
-    <div style="margin-top:12px">
-      <label>빠른 선택 — 분야별 주요 법령 (다른 법령은 위 검색창에 직접 입력)</label>
-      <div class="presets" id="presets"></div>
-    </div>
+      <div style="margin-top:12px">
+        <label>빠른 선택 — 분야별 주요 법령 (다른 법령은 위 검색창에 직접 입력)</label>
+        <div class="presets" id="presets"></div>
+      </div>
   </div>
 
   <!-- 결과 -->
@@ -260,6 +280,113 @@
       <p>공통 파라미터: <code>OC</code>(인증키), <code>type</code>(JSON/XML/HTML), <code>query</code>, <code>display</code>(≤100), <code>page</code>, <code>sort</code></p>
     </div>
   </details>
+
+  </section>
+  <!-- =================== end 법령 검색 화면 =================== -->
+
+  <!-- ===================== 질의회신 검색 화면 ===================== -->
+  <section id="qnaApp" style="display:none">
+
+    <!-- 검색 조건 -->
+    <div class="card">
+      <div class="row">
+        <div style="flex:0 0 220px">
+          <label>분야 (기준서)</label>
+          <select id="qnaBoard">
+            <option value="kifrs" selected>K-IFRS 질의회신</option>
+            <option value="gaap">일반기업회계기준 질의회신</option>
+            <option value="summary">질의회신 요약(전체)</option>
+          </select>
+        </div>
+        <div style="flex:0 0 120px">
+          <label>검색 범위</label>
+          <select id="qnaField">
+            <option value="ALL" selected>전체</option>
+            <option value="TITLE">제목</option>
+            <option value="CONTENTS">내용</option>
+          </select>
+        </div>
+        <div style="flex:2">
+          <label>검색어 (비우면 최신 목록)</label>
+          <input type="text" id="qnaWord" placeholder="예: 리스, 종속기업투자주식, 충당부채…" />
+        </div>
+        <div style="flex:0 0 auto">
+          <button id="qnaBtn">검색</button>
+        </div>
+      </div>
+      <div class="muted-note">
+        한국회계기준원(<a href="https://www.kasb.or.kr/" target="_blank">kasb.or.kr</a>) 질의회신 목록을
+        크롤러(Python) 서비스를 통해 검색합니다. 제목을 클릭하면 원문(질의·회신) 페이지가 새 탭으로 열립니다.
+      </div>
+    </div>
+
+    <!-- 검색 결과 -->
+    <div class="card">
+      <div class="toolbar">
+        <strong id="qnaResultTitle">결과</strong>
+        <span class="spacer"></span>
+        <button class="ghost" id="qnaPrev">‹ 이전</button>
+        <span class="hint" style="display:inline-flex;align-items:center;gap:5px">
+          <input type="text" id="qnaPage" value="1" inputmode="numeric"
+                 style="width:52px;text-align:center;padding:6px 7px" />
+          / <span id="qnaTotal">?</span>
+        </span>
+        <button class="ghost" id="qnaNext">다음 ›</button>
+        <button class="ghost" id="qnaToggleRaw">원본 JSON 보기</button>
+      </div>
+      <div class="status" id="qnaStatus">분야·검색어를 고르고 [검색]을 누르세요.</div>
+      <div id="qnaTableHost" class="scroll" style="display:none"></div>
+      <pre class="raw" id="qnaRawHost" style="display:none"></pre>
+    </div>
+
+  </section>
+  <!-- =================== end 질의회신 검색 화면 =================== -->
+
+  <!-- ===================== 한국회계기준원 화면 ===================== -->
+  <section id="kasbApp" style="display:none">
+
+    <!-- 게시판 선택 -->
+    <div class="card">
+      <div class="row">
+        <div style="flex:2">
+          <label>게시판</label>
+          <select id="kasbBoard">
+            <option value="notice" selected>공지사항</option>
+            <option value="press">보도자료</option>
+            <option value="news">뉴스레터</option>
+          </select>
+        </div>
+        <div style="flex:0 0 auto">
+          <button id="kasbBtn">불러오기</button>
+        </div>
+      </div>
+      <div class="muted-note">
+        한국회계기준원(<a href="https://www.kasb.or.kr/" target="_blank">kasb.or.kr</a>) 게시판을
+        크롤러(Python) 서비스를 통해 가져옵니다. 제목을 클릭하면 원문 페이지가 새 탭으로 열립니다.
+      </div>
+    </div>
+
+    <!-- 크롤 결과 -->
+    <div class="card">
+      <div class="toolbar">
+        <strong id="kasbResultTitle">결과</strong>
+        <span class="spacer"></span>
+        <button class="ghost" id="kasbPrev">‹ 이전</button>
+        <span class="hint" style="display:inline-flex;align-items:center;gap:5px">
+          <input type="text" id="kasbPage" value="1" inputmode="numeric"
+                 style="width:52px;text-align:center;padding:6px 7px" />
+          / <span id="kasbTotal">?</span>
+        </span>
+        <button class="ghost" id="kasbNext">다음 ›</button>
+        <button class="ghost" id="kasbToggleRaw">원본 JSON 보기</button>
+      </div>
+      <div class="status" id="kasbStatus">게시판과 페이지를 고르고 [불러오기]를 누르세요.</div>
+      <div id="kasbTableHost" class="scroll" style="display:none"></div>
+      <pre class="raw" id="kasbRawHost" style="display:none"></pre>
+    </div>
+
+  </section>
+  <!-- =================== end 한국회계기준원 화면 =================== -->
 
 </div>
 
@@ -325,7 +452,31 @@ PRESET_GROUPS.forEach((g) => {
   presetHost.appendChild(grp);
 });
 
-// ── 탭 ──
+// ── 상단 메뉴: 화면(앱) 전환 ──
+let kasbLoaded = false;   // 한국회계기준원 화면 첫 진입 시 1회 자동 로드
+let qnaLoaded = false;    // 질의회신 화면 첫 진입 시 1회 자동 로드
+const HEADERS = {
+  law:  { title: "📜 법령 변경내용 검색",  sub: "국가법령정보 OPEN API (law.go.kr/DRF) — 전체 법령 검색" },
+  qna:  { title: "📑 질의회신 검색",        sub: "kasb.or.kr 질의회신 (K-IFRS·일반기준·요약) 검색 — Python 크롤러 경유" },
+  kasb: { title: "🏛 한국회계기준원",       sub: "kasb.or.kr 게시판 크롤링 (Python 크롤러 경유)" },
+};
+function showApp(app) {
+  $("lawApp").style.display  = app === "law"  ? "" : "none";
+  $("qnaApp").style.display  = app === "qna"  ? "" : "none";
+  $("kasbApp").style.display = app === "kasb" ? "" : "none";
+  document.querySelectorAll("#topnav .navbtn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.app === app));
+  const h = HEADERS[app] || HEADERS.law;
+  document.querySelector("header h1").textContent = h.title;
+  document.querySelector("header .sub").textContent = h.sub;
+  if (app === "qna"  && !qnaLoaded)  { qnaLoaded = true;  doQna(); }   // 첫 진입 시 자동 로드
+  if (app === "kasb" && !kasbLoaded) { kasbLoaded = true; doCrawl(); } // 첫 진입 시 자동 로드
+}
+document.querySelectorAll("#topnav .navbtn").forEach((b) => {
+  b.onclick = () => showApp(b.dataset.app);
+});
+
+// ── 법령 검색 탭 (law / eflaw / oldAndNew) ──
 document.querySelectorAll(".tab").forEach((t) => {
   t.onclick = () => {
     if (t.classList.contains("active")) return;   // 같은 탭이면 무시
@@ -339,6 +490,34 @@ document.querySelectorAll(".tab").forEach((t) => {
 
 $("searchBtn").onclick = doSearch;
 $("query").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+
+// ── 질의회신 검색 ──
+$("qnaBtn").onclick = () => doQna(1);
+$("qnaWord").addEventListener("keydown", (e) => { if (e.key === "Enter") doQna(1); });
+$("qnaBoard").addEventListener("change", () => doQna(1));
+$("qnaField").addEventListener("change", () => { if ($("qnaWord").value.trim()) doQna(1); });
+$("qnaPage").addEventListener("keydown", (e) => { if (e.key === "Enter") doQna(parseInt($("qnaPage").value, 10) || 1); });
+$("qnaPrev").onclick = () => { const p = parseInt($("qnaPage").value, 10) || 1; if (p > 1) doQna(p - 1); };
+$("qnaNext").onclick = () => { const p = parseInt($("qnaPage").value, 10) || 1; if (!qnaTotalPages || p < qnaTotalPages) doQna(p + 1); };
+$("qnaToggleRaw").onclick = () => {
+  const el = $("qnaRawHost");
+  const show = el.style.display === "none";
+  el.style.display = show ? "block" : "none";
+  $("qnaToggleRaw").textContent = show ? "원본 JSON 숨기기" : "원본 JSON 보기";
+};
+
+// ── 한국회계기준원 크롤링 ──
+$("kasbBtn").onclick = () => doCrawl();
+$("kasbPage").addEventListener("keydown", (e) => { if (e.key === "Enter") doCrawl(); });
+$("kasbBoard").addEventListener("change", () => doCrawl(1));
+$("kasbPrev").onclick = () => { const p = parseInt($("kasbPage").value, 10) || 1; if (p > 1) doCrawl(p - 1); };
+$("kasbNext").onclick = () => { const p = parseInt($("kasbPage").value, 10) || 1; if (!kasbTotalPages || p < kasbTotalPages) doCrawl(p + 1); };
+$("kasbToggleRaw").onclick = () => {
+  const el = $("kasbRawHost");
+  const show = el.style.display === "none";
+  el.style.display = show ? "block" : "none";
+  $("kasbToggleRaw").textContent = show ? "원본 JSON 숨기기" : "원본 JSON 보기";
+};
 
 $("toggleRaw").onclick = () => {
   rawVisible = !rawVisible;
@@ -545,6 +724,160 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (m) => (
     { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[m]
   ));
+}
+
+// ───────────── 한국회계기준원 게시판 크롤링 ─────────────
+// 법령 검색 화면과 완전히 분리 — kasb 전용 결과 요소(kasbStatus/kasbResultTitle/kasbTableHost/kasbRawHost)를 쓴다.
+function setKasbStatus(kind, msg) {
+  const el = $("kasbStatus");
+  el.className = "status" + (kind ? " " + kind : "");
+  el.textContent = msg;
+}
+
+let kasbTotalPages = null; // 마지막 응답의 총 페이지 수 (이전/다음 버튼 경계용)
+
+async function doCrawl(page) {
+  const board = $("kasbBoard").value;
+  if (page == null) page = parseInt($("kasbPage").value, 10);
+  if (!page || page < 1) page = 1;
+  $("kasbPage").value = String(page);
+
+  setKasbStatus("", "크롤링 중…  (" + $("kasbBoard").selectedOptions[0].textContent + " " + page + "쪽)");
+  $("kasbTableHost").style.display = "none";
+
+  try {
+    const res = await fetch("/api/crawl?board=" + encodeURIComponent(board) + "&page=" + page);
+    const data = await res.json();
+    if (!res.ok) {
+      return setKasbStatus("err", "크롤러 오류: " + (data.detail || data.message || res.status));
+    }
+    $("kasbRawHost").textContent = JSON.stringify(data, null, 2);
+    renderKasb(data);
+  } catch (err) {
+    setKasbStatus("err", "요청 실패: " + err.message + " (크롤러 서비스가 떠 있는지 확인하세요)");
+  }
+}
+
+function renderKasb(data) {
+  const items = (data && data.items) || [];
+  const host = $("kasbTableHost");
+  kasbTotalPages = data.totalPages || null;
+  $("kasbResultTitle").textContent = data.label
+    ? data.label + " — " + (data.page || 1) + "/" + (data.totalPages || "?") + "쪽"
+    : "결과";
+  $("kasbPage").value = String(data.page || 1);
+  $("kasbTotal").textContent = kasbTotalPages || "?";
+
+  if (!items.length) {
+    host.style.display = "none";
+    return setKasbStatus("", "결과가 없습니다. (원본 JSON 보기로 응답 확인 가능)");
+  }
+
+  let html = "<table><thead><tr>" +
+    "<th>번호</th><th>분류</th><th>제목</th><th>작성일</th><th>첨부</th>" +
+    "</tr></thead><tbody>";
+  items.forEach((it) => {
+    const title = it.url
+      ? '<a class="lawlink" href="' + escapeHtml(it.url) + '" target="_blank" rel="noopener">' + escapeHtml(it.title) + "</a>"
+      : escapeHtml(it.title);
+    const files = (it.files && it.files.length)
+      ? it.files.map((f) => '<div class="jo-ref">📎 ' + escapeHtml(f.name) + "</div>").join("")
+      : '<span style="color:var(--muted)">—</span>';
+    html += "<tr>" +
+      "<td>" + escapeHtml(String(it.no || "")) + "</td>" +
+      "<td>" + escapeHtml(String(it.category || "")) + "</td>" +
+      "<td>" + title + "</td>" +
+      "<td>" + escapeHtml(String(it.date || "")) + "</td>" +
+      "<td>" + files + "</td>" +
+      "</tr>";
+  });
+  html += "</tbody></table>";
+  host.innerHTML = html;
+  host.style.display = "block";
+  setKasbStatus("ok", "불러오기 완료 — " + items.length + "건 표시 · 제목 클릭 시 원문(새 탭).");
+}
+
+// ───────────── 질의회신(Q&A) 검색 ─────────────
+// 법령/게시판 화면과 완전히 분리 — qna 전용 요소만 쓴다.
+let qnaPage = 1;          // 현재 페이지
+let qnaTotalPages = null; // 마지막 응답의 총 페이지 수
+
+function setQnaStatus(kind, msg) {
+  const el = $("qnaStatus");
+  el.className = "status" + (kind ? " " + kind : "");
+  el.textContent = msg;
+}
+
+async function doQna(page) {
+  const board = $("qnaBoard").value;
+  const field = $("qnaField").value;
+  const word = $("qnaWord").value.trim();
+  qnaPage = (page && page >= 1) ? page : 1;
+
+  const params = new URLSearchParams({ board, page: String(qnaPage), field });
+  if (word) params.set("word", word);
+
+  const what = $("qnaBoard").selectedOptions[0].textContent + (word ? ` · “${word}” 검색` : "");
+  setQnaStatus("", `불러오는 중…  (${what} · ${qnaPage}쪽)`);
+  $("qnaTableHost").style.display = "none";
+
+  try {
+    const res = await fetch("/api/qna?" + params.toString());
+    const data = await res.json();
+    if (!res.ok) {
+      return setQnaStatus("err", "크롤러 오류: " + (data.detail || data.message || res.status));
+    }
+    $("qnaRawHost").textContent = JSON.stringify(data, null, 2);
+    renderQna(data);
+  } catch (err) {
+    setQnaStatus("err", "요청 실패: " + err.message + " (크롤러 서비스가 떠 있는지 확인하세요)");
+  }
+}
+
+function renderQna(data) {
+  const items = (data && data.items) || [];
+  const host = $("qnaTableHost");
+  qnaTotalPages = data.totalPages || null;
+  const isSummary = data.board === "summary";
+
+  $("qnaResultTitle").textContent =
+    (data.label || "결과") + (data.word ? ` — “${data.word}”` : "") + ` · ${items.length}건`;
+  $("qnaPage").value = String(qnaPage);
+  $("qnaTotal").textContent = qnaTotalPages || "?";
+
+  if (!items.length) {
+    host.style.display = "none";
+    return setQnaStatus("", "결과가 없습니다. (원본 JSON 보기로 응답 확인 가능)");
+  }
+
+  let html = "<table><thead><tr><th style='width:60px'>번호</th>" +
+    (isSummary ? "<th style='width:130px'>분류</th>" : "") +
+    "<th>제목</th><th style='width:96px'>회신일</th><th style='width:96px'>공개일</th><th>첨부</th>" +
+    "</tr></thead><tbody>";
+
+  items.forEach((it) => {
+    const noCell = it.pinned
+      ? '<span class="badge 제정">공지</span>'
+      : escapeHtml(String(it.no || ""));
+    const title = it.url
+      ? '<a class="lawlink" href="' + escapeHtml(it.url) + '" target="_blank" rel="noopener">' + escapeHtml(it.title) + "</a>"
+      : escapeHtml(it.title);
+    const files = (it.files && it.files.length)
+      ? it.files.map((f) => '<div class="jo-ref">📎 ' + escapeHtml(f.name) + "</div>").join("")
+      : '<span style="color:var(--muted)">—</span>';
+    html += "<tr>" +
+      "<td>" + noCell + "</td>" +
+      (isSummary ? "<td>" + escapeHtml(String(it.category || "")) + "</td>" : "") +
+      "<td>" + title + "</td>" +
+      "<td>" + escapeHtml(String(it.replyDate || "")) + "</td>" +
+      "<td>" + escapeHtml(String(it.openDate || "")) + "</td>" +
+      "<td>" + files + "</td>" +
+      "</tr>";
+  });
+  html += "</tbody></table>";
+  host.innerHTML = html;
+  host.style.display = "block";
+  setQnaStatus("ok", "조회 완료 — " + items.length + "건 표시 · 제목 클릭 시 원문(새 탭).");
 }
 
 // ───────────── 상세(본문 / 신구법 비교) 보기 ─────────────
