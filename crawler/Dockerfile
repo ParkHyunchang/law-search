@@ -7,7 +7,9 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py kasb.py ./
+# 크롤러 파이썬 모듈 전체 복사 (app.py, kasb.py, qna.py …)
+# 개별 나열하면 모듈 추가 시 누락되기 쉬워 *.py 로 일괄 복사한다.
+COPY *.py ./
 
 ENV PORT=8000
 EXPOSE 8000
