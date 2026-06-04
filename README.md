@@ -13,12 +13,46 @@
     - 신구법 비교 탭 → 모달 안에서 두 탭 전환:
       - **🔀 신구법 비교** — 구법 ↔ 신법 2열 대조 (바뀐 부분은 빨강 취소선/초록 강조)
       - **📄 법령 원문** — 해당 법령의 전체 조문 (최초 1회만 로드 후 캐시)
+- `crawler/` — **한국회계기준원(kasb.or.kr) 크롤러** (Python/FastAPI)
+  - `app.py` — FastAPI 서버. `/crawl`(게시판: 공지/보도/뉴스), `/qna`(질의회신: K-IFRS/일반기준/요약 + 검색) 엔드포인트 제공
+  - `kasb.py` — 게시판 목록 파싱 / `qna.py` — 질의회신 목록·검색 파싱
+  - 외부로 포트를 열지 않고, Node(`server.js`)가 내부에서 호출한다 → `/api/crawl`, `/api/qna`
 
-## 실행
+## 실행 (서버 2개를 함께 띄워야 함)
+
+이 앱은 **Node 서버**와 **Python 크롤러 서버**가 한 쌍으로 동작합니다.
+크롤링(질의회신/게시판) 기능을 쓰려면 **둘 다** 떠 있어야 합니다.
+
+```
+브라우저  →  Node 서버 (3000)  →  Python 크롤러 (8000)  →  kasb.or.kr
+           node server.js        uvicorn app:app
+```
+
+**터미널 1 — Node 서버 (루트 폴더)**
 ```powershell
 node server.js
 ```
 → 브라우저에서 http://localhost:3000
+
+**터미널 2 — Python 크롤러 (`crawler/` 폴더)**
+```powershell
+cd crawler
+pip install -r requirements.txt   # 최초 1회
+uvicorn app:app --port 8000
+```
+
+> ⚠️ `python app.py` 나 `python -c "..."` 같은 **한 번 실행하고 끝나는 명령은 안 됩니다.**
+> 크롤러는 8000번에서 **계속 떠 있는 서버**여야 하며, 그래야 Node가 호출할 수 있습니다.
+> 크롤러가 떠 있지 않으면 질의회신/게시판 기능에서 `crawler_unreachable` 에러가 납니다.
+>
+> 법령 검색(OPEN API) 기능만 쓸 거라면 Node 서버만으로도 동작합니다 — 크롤러는 회계기준원 크롤링 전용입니다.
+
+### 크롤러 단독 확인 (선택)
+서버를 띄운 뒤 직접 호출해 결과를 확인할 수 있습니다:
+```powershell
+curl "http://localhost:8000/qna?board=kifrs&page=1&field=ALL&word=리스"   # 질의회신 검색
+curl "http://localhost:8000/crawl?board=notice&page=1"                     # 게시판
+```
 
 ## 사전 준비 (중요)
 1. https://open.law.go.kr 에서 OPEN API **활용 신청**
@@ -44,8 +78,12 @@ node server.js
 
 ## 🐳 NAS(Docker) 배포
 
-구성 파일: `Dockerfile`, `docker-compose.yml`, `.dockerignore`
-단일 Node 컨테이너(프록시+정적서버)이며 호스트 **3600 → 컨테이너 3000** 으로 매핑.
+구성 파일: `Dockerfile`, `crawler/Dockerfile`, `docker-compose.yml`, `.dockerignore`
+**컨테이너 2개**로 동작합니다 (`docker-compose.yml`):
+- `law_search` — Node 프록시+정적서버. 호스트 **3600 → 컨테이너 3000** 매핑
+- `law_crawler` — Python/FastAPI 크롤러(8000). 외부 포트는 열지 않고 내부 네트워크에서만 접근
+
+`law_search` 는 `CRAWLER_URL=http://crawler:8000` 으로 크롤러를 호출하므로 `compose up` 시 **둘이 함께 뜹니다**(`depends_on`). 로컬 개발처럼 따로 실행할 필요는 없습니다.
 
 ### 방법 A — NAS에서 직접 빌드 (가장 간단)
 폴더 전체를 NAS로 복사(scp/Git/공유폴더) 후, NAS SSH에서:
